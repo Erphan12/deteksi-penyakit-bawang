@@ -252,28 +252,7 @@ class OnionDiseaseAPI:
                 self.logger.error(f"Error serving icon {filename}: {e}")
                 return jsonify({'error': f'Icon {filename} not found'}), 500
         
-        @self.app.route('/audio/<path:filename>')
-        def serve_audio(filename):
-            try:
-                # Get absolute path to frontend directory
-                current_dir = os.path.dirname(os.path.abspath(__file__))
-                project_root = os.path.dirname(current_dir)
-                frontend_path = os.path.join(project_root, 'frontend')
-                audio_path = os.path.join(frontend_path, 'audio')
-                audio_file_path = os.path.join(audio_path, filename)
                 
-                self.logger.info(f"Serving audio: {audio_file_path}")
-                
-                if os.path.exists(audio_file_path):
-                    return send_from_directory(audio_path, filename)
-                else:
-                    self.logger.error(f"Audio file not found at: {audio_file_path}")
-                    return jsonify({'error': f'Audio {filename} not found'}), 404
-                    
-            except Exception as e:
-                self.logger.error(f"Error serving audio {filename}: {e}")
-                return jsonify({'error': f'Audio {filename} not found'}), 500
-        
         # Add security headers to all responses
         @self.app.after_request
         def add_security_headers(response):
@@ -561,7 +540,15 @@ class OnionDiseaseAPI:
     def run(self, debug=True, host='0.0.0.0', port=5000):
         """Jalankan aplikasi Flask"""
         self.logger.info(f"Starting Onion Disease Detection API on {host}:{port}")
-        self.app.run(debug=debug, host=host, port=port)
+        self.logger.info(f"Debug mode: {debug}")
+        self.logger.info(f"Environment: {'Production' if not debug else 'Development'}")
+        
+        # Railway compatibility
+        if os.environ.get('RAILWAY_ENVIRONMENT'):
+            self.logger.info("Running on Railway platform")
+            debug = False  # Force disable debug on Railway
+        
+        self.app.run(debug=debug, host=host, port=port, threaded=True)
 
 # Entry point
 if __name__ == '__main__':

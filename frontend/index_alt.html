@@ -18,7 +18,12 @@
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
 </head>
 <body>
-    
+    <!-- Background Music -->
+    <audio id="background-music" loop preload="auto">
+        <source src="audio/bgm.mp3" type="audio/mpeg">
+        Your browser does not support the audio element.
+    </audio>
+
     <!-- Loading Screen -->
     <div id="loading-screen" class="loading-screen">
         <div class="loading-content">
@@ -39,7 +44,10 @@
                     <p class="header-subtitle">AI-Powered Plant Disease Detection</p>
                 </div>
                 <div class="header-actions">
-                                        <button id="info-btn" class="icon-btn" title="Informasi">
+                    <button id="music-toggle" class="icon-btn music-btn" title="Toggle Music">
+                        <i class="fas fa-volume-up"></i>
+                    </button>
+                    <button id="info-btn" class="icon-btn" title="Informasi">
                         <i class="fas fa-info-circle"></i>
                     </button>
                     <button id="history-btn" class="icon-btn" title="Riwayat">
@@ -227,7 +235,20 @@
                         Simpan Otomatis
                     </label>
                 </div>
-                            </div>
+                <div class="setting-item">
+                    <label>
+                        <input type="checkbox" id="music-enable-toggle">
+                        Background Music
+                    </label>
+                </div>
+                <div class="setting-item">
+                    <label for="volume-slider">Volume Musik:</label>
+                    <div class="volume-control">
+                        <input type="range" id="volume-slider" min="0" max="100" value="30" class="volume-slider">
+                        <span id="volume-value">30%</span>
+                    </div>
+                </div>
+            </div>
         </div>
     </div>
 

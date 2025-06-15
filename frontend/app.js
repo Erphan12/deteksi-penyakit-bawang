@@ -1,12 +1,29 @@
 // Onion Disease Detection App JavaScript
 class OnionDiseaseApp {
     constructor() {
-        this.API_BASE_URL = 'http://localhost:5050/api';
+        // Detect if running on Railway or localhost
+        const isLocalhost = window.location.hostname === 'localhost' || 
+                           window.location.hostname === '127.0.0.1' ||
+                           window.location.hostname === '';
+        
+        if (isLocalhost) {
+            // Local development
+            this.API_BASE_URL = window.location.origin + '/api';
+            this.FALLBACK_URLS = [
+                '/api',
+                'http://127.0.0.1:5050/api',
+                'http://localhost:5050/api'
+            ];
+        } else {
+            // Production (Railway)
+            this.API_BASE_URL = window.location.origin + '/api';
+            this.FALLBACK_URLS = ['/api'];
+        }
+        
         this.currentSection = 'upload';
         this.isOnline = navigator.onLine;
         this.analysisHistory = JSON.parse(localStorage.getItem('analysisHistory') || '[]');
         
-                
         this.init();
     }
 
@@ -106,130 +123,9 @@ class OnionDiseaseApp {
         document.getElementById('share-result-btn').addEventListener('click', () => this.shareResult());
         document.getElementById('new-analysis-btn').addEventListener('click', () => this.newAnalysis());
 
-        // Settings
-        const musicEnableToggle = document.getElementById('music-enable-toggle');
-        const volumeSlider = document.getElementById('volume-slider');
-        
-        if (musicEnableToggle) {
-            musicEnableToggle.addEventListener('change', (e) => {
-                this.isMusicEnabled = e.target.checked;
-                localStorage.setItem('musicEnabled', this.isMusicEnabled.toString());
-                
-                if (this.isMusicEnabled) {
-                    this.tryPlayMusic();
-                } else if (this.backgroundMusic) {
-                    this.backgroundMusic.pause();
-                }
-                this.updateMusicButton();
-            });
-        }
-        
-        if (volumeSlider) {
-            volumeSlider.addEventListener('input', (e) => {
-                const volume = parseInt(e.target.value) / 100;
-                this.setMusicVolume(volume);
-                document.getElementById('volume-value').textContent = e.target.value + '%';
-            });
-        }
-    }
+            }
 
-    setupBackgroundMusic() {
-        this.backgroundMusic = document.getElementById('background-music');
         
-        if (!this.backgroundMusic) {
-            console.warn('Background music element not found');
-            return;
-        }
-
-        // Set initial volume
-        this.backgroundMusic.volume = this.musicVolume;
-        
-        // Update button state
-        this.updateMusicButton();
-        
-        // Auto-play music if enabled (with user interaction)
-        if (this.isMusicEnabled) {
-            // Try to play music after user interaction
-            document.addEventListener('click', () => {
-                this.tryPlayMusic();
-            }, { once: true });
-        }
-        
-        // Handle audio events
-        this.backgroundMusic.addEventListener('play', () => {
-            this.updateMusicButton();
-        });
-        
-        this.backgroundMusic.addEventListener('pause', () => {
-            this.updateMusicButton();
-        });
-        
-        this.backgroundMusic.addEventListener('error', (e) => {
-            console.warn('Background music error:', e);
-            this.showToast('Gagal memuat musik background', 'warning');
-        });
-    }
-
-    tryPlayMusic() {
-        if (this.backgroundMusic && this.isMusicEnabled) {
-            this.backgroundMusic.play().catch(error => {
-                console.warn('Could not play background music:', error);
-                // Browser might block autoplay, that's okay
-            });
-        }
-    }
-
-    toggleMusic() {
-        if (!this.backgroundMusic) return;
-        
-        if (this.backgroundMusic.paused) {
-            this.backgroundMusic.play().then(() => {
-                this.isMusicEnabled = true;
-                localStorage.setItem('musicEnabled', 'true');
-                this.updateMusicButton();
-                this.showToast('Musik dinyalakan 🎵', 'success');
-            }).catch(error => {
-                console.warn('Could not play music:', error);
-                this.showToast('Gagal memutar musik', 'error');
-            });
-        } else {
-            this.backgroundMusic.pause();
-            this.isMusicEnabled = false;
-            localStorage.setItem('musicEnabled', 'false');
-            this.updateMusicButton();
-            this.showToast('Musik dimatikan 🔇', 'info');
-        }
-    }
-
-    updateMusicButton() {
-        const musicToggle = document.getElementById('music-toggle');
-        if (!musicToggle || !this.backgroundMusic) return;
-        
-        const icon = musicToggle.querySelector('i');
-        
-        if (this.backgroundMusic.paused || !this.isMusicEnabled) {
-            // Music is paused/muted
-            icon.className = 'fas fa-volume-mute';
-            musicToggle.classList.remove('playing');
-            musicToggle.classList.add('muted');
-            musicToggle.title = 'Nyalakan Musik';
-        } else {
-            // Music is playing
-            icon.className = 'fas fa-volume-up';
-            musicToggle.classList.remove('muted');
-            musicToggle.classList.add('playing');
-            musicToggle.title = 'Matikan Musik';
-        }
-    }
-
-    setMusicVolume(volume) {
-        if (this.backgroundMusic) {
-            this.musicVolume = Math.max(0, Math.min(1, volume));
-            this.backgroundMusic.volume = this.musicVolume;
-            localStorage.setItem('musicVolume', this.musicVolume.toString());
-        }
-    }
-    
     setupDragAndDrop() {
         const uploadArea = document.getElementById('upload-area');
         
@@ -451,16 +347,42 @@ class OnionDiseaseApp {
         const formData = new FormData();
         formData.append('image', file);
 
-        const response = await fetch(`${this.API_BASE_URL}/detect`, {
-            method: 'POST',
-            body: formData
-        });
+        // Try main URL first, then fallbacks
+        const urlsToTry = [this.API_BASE_URL, ...this.FALLBACK_URLS];
+        
+        for (let i = 0; i < urlsToTry.length; i++) {
+            const baseUrl = urlsToTry[i];
+            try {
+                console.log(`Trying API URL: ${baseUrl}/detect`);
+                
+                const response = await fetch(`${baseUrl}/detect`, {
+                    method: 'POST',
+                    body: formData,
+                    // Add headers to avoid blocking
+                    headers: {
+                        'X-Requested-With': 'XMLHttpRequest'
+                    }
+                });
 
-        if (!response.ok) {
-            throw new Error(`HTTP error! status: ${response.status}`);
+                if (response.ok) {
+                    // Update API_BASE_URL to working URL for future requests
+                    this.API_BASE_URL = baseUrl;
+                    return await response.json();
+                } else {
+                    throw new Error(`HTTP error! status: ${response.status}`);
+                }
+            } catch (error) {
+                console.warn(`Failed with URL ${baseUrl}: ${error.message}`);
+                
+                // If this is the last URL, throw the error
+                if (i === urlsToTry.length - 1) {
+                    throw new Error(`All API endpoints failed. Last error: ${error.message}`);
+                }
+                
+                // Continue to next URL
+                continue;
+            }
         }
-
-        return await response.json();
     }
 
     displayAnalysisResults(result) {
@@ -544,17 +466,41 @@ class OnionDiseaseApp {
     }
 
     async loadDiseaseInfo() {
-        try {
-            const response = await fetch(`${this.API_BASE_URL}/diseases`);
-            if (response.ok) {
-                const data = await response.json();
-                this.displayDiseaseCards(data.diseases);
-            } else {
-                this.displayDefaultDiseaseInfo();
+        const urlsToTry = [this.API_BASE_URL, ...this.FALLBACK_URLS];
+        
+        for (let i = 0; i < urlsToTry.length; i++) {
+            const baseUrl = urlsToTry[i];
+            try {
+                console.log(`Trying to load disease info from: ${baseUrl}/diseases`);
+                
+                const response = await fetch(`${baseUrl}/diseases`, {
+                    headers: {
+                        'X-Requested-With': 'XMLHttpRequest'
+                    }
+                });
+                
+                if (response.ok) {
+                    const data = await response.json();
+                    this.displayDiseaseCards(data.diseases);
+                    // Update API_BASE_URL to working URL
+                    this.API_BASE_URL = baseUrl;
+                    return;
+                } else {
+                    throw new Error(`HTTP error! status: ${response.status}`);
+                }
+            } catch (error) {
+                console.warn(`Failed to load disease info from ${baseUrl}: ${error.message}`);
+                
+                // If this is the last URL, use default info
+                if (i === urlsToTry.length - 1) {
+                    console.error('All disease info endpoints failed, using default data');
+                    this.displayDefaultDiseaseInfo();
+                    return;
+                }
+                
+                // Continue to next URL
+                continue;
             }
-        } catch (error) {
-            console.error('Error loading disease info:', error);
-            this.displayDefaultDiseaseInfo();
         }
     }
 
@@ -644,19 +590,7 @@ class OnionDiseaseApp {
     }
     
     updateSettingsModal() {
-        const musicEnableToggle = document.getElementById('music-enable-toggle');
-        const volumeSlider = document.getElementById('volume-slider');
-        const volumeValue = document.getElementById('volume-value');
-        
-        if (musicEnableToggle) {
-            musicEnableToggle.checked = this.isMusicEnabled;
-        }
-        
-        if (volumeSlider && volumeValue) {
-            const volumePercent = Math.round(this.musicVolume * 100);
-            volumeSlider.value = volumePercent;
-            volumeValue.textContent = volumePercent + '%';
-        }
+        // Settings modal updated - music controls removed
     }
 
     hideModal(modalId) {

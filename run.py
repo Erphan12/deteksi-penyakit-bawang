@@ -48,10 +48,10 @@ def start_backend():
         
         # Get port from environment (for deployment) or use default
         port = int(os.environ.get('PORT', 5050))
-        host = '0.0.0.0' if os.environ.get('PORT') else 'localhost'
+        host = '0.0.0.0'  # Always use 0.0.0.0 for deployment compatibility
         
-        # Production settings
-        debug_mode = os.environ.get('FLASK_ENV') == 'development'
+        # Production settings - disable debug in production
+        debug_mode = os.environ.get('FLASK_ENV') == 'development' and not os.environ.get('PORT')
         
         print(f"🌐 Server running on {host}:{port}")
         api.run(debug=debug_mode, host=host, port=port)

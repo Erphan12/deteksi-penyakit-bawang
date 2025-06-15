@@ -5,6 +5,9 @@
 Flask==2.3.3
 Flask-CORS==4.0.0
 
+# Production WSGI server
+gunicorn==21.2.0
+
 # Image processing
 Pillow==10.0.0
 

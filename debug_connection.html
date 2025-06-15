@@ -1,0 +1,288 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Debug Koneksi API</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 800px;
+            margin: 0 auto;
+            padding: 20px;
+            background: #f5f5f5;
+        }
+        .container {
+            background: white;
+            padding: 20px;
+            border-radius: 8px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        }
+        .test-item {
+            margin: 15px 0;
+            padding: 15px;
+            border: 1px solid #ddd;
+            border-radius: 5px;
+        }
+        .success { background: #d4edda; border-color: #c3e6cb; }
+        .error { background: #f8d7da; border-color: #f5c6cb; }
+        .warning { background: #fff3cd; border-color: #ffeaa7; }
+        .info { background: #d1ecf1; border-color: #bee5eb; }
+        button {
+            background: #007bff;
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            border-radius: 5px;
+            cursor: pointer;
+            margin: 5px;
+        }
+        button:hover { background: #0056b3; }
+        .log {
+            background: #f8f9fa;
+            border: 1px solid #dee2e6;
+            padding: 10px;
+            margin: 10px 0;
+            border-radius: 5px;
+            font-family: monospace;
+            white-space: pre-wrap;
+            max-height: 300px;
+            overflow-y: auto;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🔧 Debug Koneksi API</h1>
+        <p>Tool ini membantu mendiagnosis masalah koneksi ke backend API.</p>
+        
+        <div class="test-item info">
+            <h3>📋 Informasi Browser</h3>
+            <div id="browser-info"></div>
+        </div>
+
+        <div class="test-item">
+            <h3>🌐 Test Koneksi Backend</h3>
+            <button onclick="testBackendConnection()">Test Koneksi</button>
+            <div id="connection-result"></div>
+        </div>
+
+        <div class="test-item">
+            <h3>🔍 Test API Endpoints</h3>
+            <button onclick="testAllEndpoints()">Test Semua Endpoint</button>
+            <div id="endpoints-result"></div>
+        </div>
+
+        <div class="test-item">
+            <h3>🚫 Deteksi Ad Blocker</h3>
+            <button onclick="detectAdBlocker()">Deteksi Ad Blocker</button>
+            <div id="adblocker-result"></div>
+        </div>
+
+        <div class="test-item">
+            <h3>📝 Log Debug</h3>
+            <button onclick="clearLog()">Clear Log</button>
+            <div id="debug-log" class="log"></div>
+        </div>
+
+        <div class="test-item warning">
+            <h3>💡 Solusi Umum</h3>
+            <ul>
+                <li><strong>Disable Ad Blocker:</strong> Matikan ad blocker untuk localhost</li>
+                <li><strong>Disable Browser Extensions:</strong> Coba mode incognito</li>
+                <li><strong>Check Firewall:</strong> Pastikan port 5050 tidak diblokir</li>
+                <li><strong>Restart Backend:</strong> Jalankan ulang server Python</li>
+                <li><strong>Clear Browser Cache:</strong> Hapus cache dan cookies</li>
+            </ul>
+        </div>
+    </div>
+
+    <script>
+        const API_BASE_URL = 'http://localhost:5050/api';
+        let logElement;
+
+        function log(message, type = 'info') {
+            if (!logElement) {
+                logElement = document.getElementById('debug-log');
+            }
+            const timestamp = new Date().toLocaleTimeString();
+            const logMessage = `[${timestamp}] ${type.toUpperCase()}: ${message}\n`;
+            logElement.textContent += logMessage;
+            logElement.scrollTop = logElement.scrollHeight;
+            console.log(logMessage);
+        }
+
+        function clearLog() {
+            document.getElementById('debug-log').textContent = '';
+        }
+
+        function displayBrowserInfo() {
+            const info = {
+                'User Agent': navigator.userAgent,
+                'Platform': navigator.platform,
+                'Language': navigator.language,
+                'Online': navigator.onLine,
+                'Cookies Enabled': navigator.cookieEnabled,
+                'Local Storage': typeof(Storage) !== "undefined",
+                'Current URL': window.location.href,
+                'Referrer': document.referrer || 'None'
+            };
+
+            let html = '<table style="width:100%; border-collapse: collapse;">';
+            for (const [key, value] of Object.entries(info)) {
+                html += `<tr><td style="border:1px solid #ddd; padding:5px;"><strong>${key}:</strong></td><td style="border:1px solid #ddd; padding:5px;">${value}</td></tr>`;
+            }
+            html += '</table>';
+            
+            document.getElementById('browser-info').innerHTML = html;
+        }
+
+        async function testBackendConnection() {
+            const resultDiv = document.getElementById('connection-result');
+            resultDiv.innerHTML = '<p>🔄 Testing connection...</p>';
+            log('Starting backend connection test');
+
+            try {
+                // Test basic connection
+                const response = await fetch(`${API_BASE_URL}`, {
+                    method: 'GET',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    }
+                });
+
+                if (response.ok) {
+                    const data = await response.json();
+                    resultDiv.innerHTML = `
+                        <div class="success">
+                            <h4>✅ Koneksi Berhasil!</h4>
+                            <p><strong>Status:</strong> ${response.status}</p>
+                            <p><strong>Message:</strong> ${data.message}</p>
+                            <p><strong>Version:</strong> ${data.version}</p>
+                        </div>
+                    `;
+                    log('Backend connection successful');
+                } else {
+                    throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+                }
+            } catch (error) {
+                resultDiv.innerHTML = `
+                    <div class="error">
+                        <h4>❌ Koneksi Gagal!</h4>
+                        <p><strong>Error:</strong> ${error.message}</p>
+                        <p><strong>Kemungkinan Penyebab:</strong></p>
+                        <ul>
+                            <li>Backend server tidak berjalan</li>
+                            <li>Port 5050 diblokir firewall</li>
+                            <li>Ad blocker memblokir request</li>
+                            <li>Browser extension mengganggu</li>
+                        </ul>
+                    </div>
+                `;
+                log(`Backend connection failed: ${error.message}`, 'error');
+            }
+        }
+
+        async function testAllEndpoints() {
+            const resultDiv = document.getElementById('endpoints-result');
+            resultDiv.innerHTML = '<p>🔄 Testing all endpoints...</p>';
+            log('Starting endpoints test');
+
+            const endpoints = [
+                { name: 'API Info', url: `${API_BASE_URL}`, method: 'GET' },
+                { name: 'Health Check', url: `${API_BASE_URL}/health`, method: 'GET' },
+                { name: 'Disease Info', url: `${API_BASE_URL}/diseases`, method: 'GET' },
+                { name: 'History', url: `${API_BASE_URL}/history`, method: 'GET' },
+                { name: 'Stats', url: `${API_BASE_URL}/stats`, method: 'GET' }
+            ];
+
+            let html = '<div>';
+            
+            for (const endpoint of endpoints) {
+                try {
+                    log(`Testing ${endpoint.name}: ${endpoint.url}`);
+                    const response = await fetch(endpoint.url, {
+                        method: endpoint.method,
+                        headers: {
+                            'Content-Type': 'application/json',
+                        }
+                    });
+
+                    if (response.ok) {
+                        html += `<p class="success">✅ ${endpoint.name}: OK (${response.status})</p>`;
+                        log(`${endpoint.name}: SUCCESS`);
+                    } else {
+                        html += `<p class="error">❌ ${endpoint.name}: Failed (${response.status})</p>`;
+                        log(`${endpoint.name}: FAILED (${response.status})`, 'error');
+                    }
+                } catch (error) {
+                    html += `<p class="error">❌ ${endpoint.name}: ${error.message}</p>`;
+                    log(`${endpoint.name}: ERROR - ${error.message}`, 'error');
+                }
+            }
+            
+            html += '</div>';
+            resultDiv.innerHTML = html;
+        }
+
+        function detectAdBlocker() {
+            const resultDiv = document.getElementById('adblocker-result');
+            log('Detecting ad blocker');
+
+            // Create a test element that ad blockers typically block
+            const testAd = document.createElement('div');
+            testAd.innerHTML = '&nbsp;';
+            testAd.className = 'adsbox';
+            testAd.style.position = 'absolute';
+            testAd.style.left = '-10000px';
+            document.body.appendChild(testAd);
+
+            setTimeout(() => {
+                let adBlockDetected = false;
+                
+                // Check if element was blocked
+                if (testAd.offsetHeight === 0) {
+                    adBlockDetected = true;
+                }
+
+                // Check for common ad blocker indicators
+                if (window.getComputedStyle(testAd).display === 'none') {
+                    adBlockDetected = true;
+                }
+
+                document.body.removeChild(testAd);
+
+                if (adBlockDetected) {
+                    resultDiv.innerHTML = `
+                        <div class="warning">
+                            <h4>⚠️ Ad Blocker Terdeteksi!</h4>
+                            <p>Ad blocker mungkin memblokir request API.</p>
+                            <p><strong>Solusi:</strong></p>
+                            <ul>
+                                <li>Disable ad blocker untuk localhost</li>
+                                <li>Tambahkan localhost ke whitelist</li>
+                                <li>Coba mode incognito browser</li>
+                            </ul>
+                        </div>
+                    `;
+                    log('Ad blocker detected', 'warning');
+                } else {
+                    resultDiv.innerHTML = `
+                        <div class="success">
+                            <h4>✅ Tidak Ada Ad Blocker</h4>
+                            <p>Ad blocker tidak terdeteksi atau tidak memblokir konten.</p>
+                        </div>
+                    `;
+                    log('No ad blocker detected');
+                }
+            }, 100);
+        }
+
+        // Initialize
+        document.addEventListener('DOMContentLoaded', () => {
+            displayBrowserInfo();
+            log('Debug tool initialized');
+        });
+    </script>
+</body>
+</html>
