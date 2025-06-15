@@ -1,0 +1,1 @@
+# Demo check script removed for production
